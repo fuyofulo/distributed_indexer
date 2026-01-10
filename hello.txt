@@ -1,1 +1,12 @@
 first commit, will be building out this project and pushing every couple hours
+
+
+
+run kafka:
+docker compose -f docker-compose.kafka.yml up -d
+
+run the ingestor:
+KAFKA_BROKERS=localhost:9092 KAFKA_TOPIC=ingest.raw cargo run
+
+turn down kafka:
+docker compose -f docker-compose.kafka.yml down
