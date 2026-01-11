@@ -4,7 +4,6 @@ use yellowstone_grpc_proto::geyser::{
 };
 
 const ACCOUNT_OWNERS: [&str; 2] = [
-    // Replace with program IDs you want to subscribe to.
     "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
     "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
 ];
