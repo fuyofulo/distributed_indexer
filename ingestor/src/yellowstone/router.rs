@@ -5,7 +5,8 @@ use prost::Message as _;
 use serde::Serialize;
 use solana_sdk::bs58;
 use yellowstone_grpc_proto::prelude::{
-    Message, SubscribeUpdate, SubscribeUpdateTransactionInfo, subscribe_update::UpdateOneof,
+    Message, SubscribeUpdate, SubscribeUpdateTransactionInfo, TransactionStatusMeta,
+    subscribe_update::UpdateOneof,
 };
 
 #[derive(Debug, Serialize)]
@@ -244,16 +245,30 @@ fn extract_program_ids_from_transaction(tx_info: &SubscribeUpdateTransactionInfo
         return Vec::new();
     };
 
-    program_ids_from_message(message)
+    program_ids_from_message(message, tx_info.meta.as_ref())
 }
 
-fn program_ids_from_message(message: &Message) -> Vec<String> {
+fn program_ids_from_message(
+    message: &Message,
+    meta: Option<&TransactionStatusMeta>,
+) -> Vec<String> {
     let mut program_ids = HashSet::new();
 
     for instruction in &message.instructions {
         let program_index = instruction.program_id_index as usize;
         if let Some(program_id_bytes) = message.account_keys.get(program_index) {
             program_ids.insert(bs58::encode(program_id_bytes).into_string());
+        }
+    }
+
+    if let Some(meta) = meta {
+        for inner in &meta.inner_instructions {
+            for instruction in &inner.instructions {
+                let program_index = instruction.program_id_index as usize;
+                if let Some(program_id_bytes) = message.account_keys.get(program_index) {
+                    program_ids.insert(bs58::encode(program_id_bytes).into_string());
+                }
+            }
         }
     }
 

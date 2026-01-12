@@ -65,7 +65,12 @@ impl PumpSwapProcessor {
                                 let program_id = bs58::encode(program_id_bytes).into_string();
 
                                 if program_id == PUMPSWAP_PROGRAM_ID {
-                                    self.parse_pumpswap_instruction(instruction, tx_message, meta);
+                                    self.parse_pumpswap_instruction(
+                                        instruction,
+                                        tx_message,
+                                        meta,
+                                        tx_update.slot,
+                                    );
                                 }
                             }
                         }
@@ -80,6 +85,7 @@ impl PumpSwapProcessor {
         instruction: &CompiledInstruction,
         message: &Message,
         meta: &TransactionStatusMeta,
+        slot: u64,
     ) {
         let data = &instruction.data;
 
@@ -90,11 +96,11 @@ impl PumpSwapProcessor {
         let discriminator = &data[0..8];
 
         if discriminator == &BUY_DISCRIMINATOR {
-            println!("PUMPSWAP BUY INSTRUCTION DETECTED");
-            self.extract_pumpswap_price_from_reserves(instruction, message, meta, "buy");
+            println!("PUMPSWAP BUY INSTRUCTION DETECTED (slot: {})", slot);
+            self.extract_pumpswap_price_from_reserves(instruction, message, meta, "buy", slot);
         } else if discriminator == &SELL_DISCRIMINATOR {
-            println!("PUMPSWAP SELL INSTRUCTION DETECTED");
-            self.extract_pumpswap_price_from_reserves(instruction, message, meta, "sell");
+            println!("PUMPSWAP SELL INSTRUCTION DETECTED (slot: {})", slot);
+            self.extract_pumpswap_price_from_reserves(instruction, message, meta, "sell", slot);
         }
     }
 
@@ -104,6 +110,7 @@ impl PumpSwapProcessor {
         message: &Message,
         meta: &TransactionStatusMeta,
         instruction_type: &str,
+        slot: u64,
     ) {
         if instruction.accounts.is_empty() {
             return;
@@ -118,8 +125,8 @@ impl PumpSwapProcessor {
         let pool_address = bs58::encode(pool_address_bytes).into_string();
 
         println!(
-            "Processing PumpSwap {} for pool: {}",
-            instruction_type, pool_address
+            "Processing PumpSwap {} for pool: {} (slot: {})",
+            instruction_type, pool_address, slot
         );
 
         let (base_mint, _quote_mint) =
@@ -186,6 +193,7 @@ impl PumpSwapProcessor {
                     final_token_mint, price_per_token
                 );
                 println!("   Pool: {}", pool_address);
+                println!("   Slot: {}", slot);
                 println!("   Timestamp: {:?}", std::time::SystemTime::now());
             } else {
                 println!("Invalid token mint: {}", final_token_mint);
