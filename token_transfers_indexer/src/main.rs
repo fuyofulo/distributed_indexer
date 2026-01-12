@@ -1,9 +1,15 @@
 use std::error::Error;
 
+use base64::{Engine as _, engine::general_purpose};
 use futures::StreamExt;
+use prost::Message as _;
 use rdkafka::ClientConfig;
 use rdkafka::consumer::{Consumer, StreamConsumer};
 use rdkafka::message::Message;
+use serde::Deserialize;
+use yellowstone_grpc_proto::prelude::SubscribeUpdate;
+
+mod token;
 
 fn build_consumer_config(brokers: &str, group_id: &str) -> Result<ClientConfig, Box<dyn Error>> {
     let mut config = ClientConfig::new();
@@ -45,12 +51,9 @@ fn build_consumer_config(brokers: &str, group_id: &str) -> Result<ClientConfig, 
     Ok(config)
 }
 
-fn format_payload(message: &rdkafka::message::BorrowedMessage<'_>) -> String {
-    match message.payload_view::<str>() {
-        Some(Ok(payload)) => payload.to_string(),
-        Some(Err(_)) => String::from_utf8_lossy(message.payload().unwrap_or_default()).into_owned(),
-        None => "<empty payload>".to_string(),
-    }
+#[derive(Debug, Deserialize)]
+struct KafkaPayload {
+    raw_base64: String,
 }
 
 #[tokio::main]
@@ -61,7 +64,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let group_id = std::env::var("KAFKA_GROUP_ID").unwrap_or_else(|_| "indexer.token".to_string());
     let topic = std::env::var("KAFKA_TOPIC").unwrap_or_else(|_| "ingest.token".to_string());
 
-    println!("Starting indexer_1...");
+    println!("Starting token_transfers_indexer...");
     println!("   Kafka brokers: {}", brokers);
     println!("   Kafka group: {}", group_id);
     println!("   Kafka topic: {}", topic);
@@ -72,12 +75,25 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     println!("Subscribed. Waiting for messages...");
 
+    let mut processor = token::TokenProcessor::new();
     let mut stream = consumer.stream();
     while let Some(message) = stream.next().await {
         match message {
             Ok(msg) => {
-                let payload = format_payload(&msg);
-                println!("{payload}");
+                let Some(payload) = payload_from_message(&msg) else {
+                    eprintln!("Skipping non-JSON Kafka payload");
+                    continue;
+                };
+
+                let update = match decode_update(&payload) {
+                    Ok(update) => update,
+                    Err(err) => {
+                        eprintln!("Failed to decode update: {}", err);
+                        continue;
+                    }
+                };
+
+                processor.handle_update(update);
             }
             Err(err) => {
                 eprintln!("Kafka error: {}", err);
@@ -86,4 +102,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
 
     Ok(())
+}
+
+fn payload_from_message(message: &rdkafka::message::BorrowedMessage<'_>) -> Option<KafkaPayload> {
+    let payload = match message.payload_view::<str>() {
+        Some(Ok(payload)) => payload,
+        Some(Err(_)) => return None,
+        None => return None,
+    };
+
+    serde_json::from_str(payload).ok()
+}
+
+fn decode_update(payload: &KafkaPayload) -> Result<SubscribeUpdate, Box<dyn Error>> {
+    let raw_bytes = general_purpose::STANDARD.decode(&payload.raw_base64)?;
+    let update = SubscribeUpdate::decode(raw_bytes.as_slice())?;
+    Ok(update)
 }
