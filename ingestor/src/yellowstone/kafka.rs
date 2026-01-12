@@ -6,20 +6,16 @@ use rdkafka::{ClientConfig, util::Timeout};
 
 pub struct KafkaPublisher {
     producer: FutureProducer,
-    topic: String,
 }
 
 impl KafkaPublisher {
-    pub fn new(brokers: &str, topic: &str) -> Result<Self, KafkaError> {
+    pub fn new(brokers: &str) -> Result<Self, KafkaError> {
         let producer: FutureProducer = ClientConfig::new()
             .set("bootstrap.servers", brokers)
             .set("message.timeout.ms", "5000")
             .create()?;
 
-        Ok(Self {
-            producer,
-            topic: topic.to_string(),
-        })
+        Ok(Self { producer })
     }
 
     pub fn check_connection(&self) -> Result<(), KafkaError> {
@@ -29,8 +25,8 @@ impl KafkaPublisher {
         Ok(())
     }
 
-    pub async fn send(&self, key: &str, payload: &str) -> Result<(), KafkaError> {
-        let record = FutureRecord::to(&self.topic).payload(payload).key(key);
+    pub async fn send_to(&self, topic: &str, key: &str, payload: &str) -> Result<(), KafkaError> {
+        let record = FutureRecord::to(topic).payload(payload).key(key);
 
         match self
             .producer

@@ -1,0 +1,10 @@
+[package]
+name = "indexer_1"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tokio = { version = "1.48.0", features = ["full"] }
+dotenv = "0.15"
+rdkafka = { version = "0.36", features = ["cmake-build"] }
+futures = "0.3"
