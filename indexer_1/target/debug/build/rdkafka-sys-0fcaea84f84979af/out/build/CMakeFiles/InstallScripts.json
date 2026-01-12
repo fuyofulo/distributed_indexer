@@ -1,9 +1,0 @@
-{
-	"InstallScripts" : 
-	[
-		"/Users/fuyofulo/code/distributed_indexer/indexer_1/target/debug/build/rdkafka-sys-0fcaea84f84979af/out/build/cmake_install.cmake",
-		"/Users/fuyofulo/code/distributed_indexer/indexer_1/target/debug/build/rdkafka-sys-0fcaea84f84979af/out/build/src/cmake_install.cmake",
-		"/Users/fuyofulo/code/distributed_indexer/indexer_1/target/debug/build/rdkafka-sys-0fcaea84f84979af/out/build/src-cpp/cmake_install.cmake"
-	],
-	"Parallel" : false
-}
